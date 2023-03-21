@@ -1,40 +1,8 @@
 import { useState, useEffect } from 'react'
-import axios from 'axios'
-
-const Filter = ({newFilter, handleFilterChange}) => {
-  return (
-    <div>Filter People by Name: <input value={newFilter} onChange={handleFilterChange} /> </div>
-  )
-}
-
-const PersonForm = ({addPerson, newName, handlePersonChange, newNumber, handleNumberChange}) => {
-  return (
-    <form onSubmit={addPerson}>
-      <div>
-        name: <input value={newName} onChange={handlePersonChange}/>
-      </div>
-      <div>number: <input value={newNumber} onChange={handleNumberChange} /></div>
-      <div>
-        <button type="submit">add</button>
-      </div>
-    </form>
-  )
-}
-
-const SinglePerson = ({person}) => {
-  return (
-    <div>{person.name} {person.number}</div>
-  )
-}
-
-const NumbersToShow = ({persons, newFilter}) => {
-  const numbersToShow = persons.filter(person => person.name.toLowerCase().includes(newFilter.toLowerCase()))
-  return (
-    <div>
-      {numbersToShow.map(person => <SinglePerson key={person.id} person={person} />)}
-    </div>
-  )
-}
+import services from './services/services'
+import Filter from './components/Filter'
+import PersonForm from './components/PersonForm'
+import NumbersToShow from './components/NumbersToShow'
 
 const App = () => {
   const [persons, setPersons] = useState([])
@@ -44,12 +12,10 @@ const App = () => {
   const [newFilter, setNewFilter] = useState('')
 
  useEffect(() => {
-    console.log('effect')
-    axios
-      .get('http://localhost:3001/persons')
-      .then(response => {
-        console.log('promise fulfilled')
-        setPersons(response.data)
+    services
+      .getAll()
+      .then(initialPersons => {
+        setPersons(initialPersons)
       })
  }, [])
 
@@ -62,32 +28,45 @@ const App = () => {
     }
 
     if (persons.map(person => person.name).includes(newName)) {
-      alert(`${personObject.name} is already added to phonebook`)
-      setNewName('')
-      setNewNumber('')
+      window.confirm(`${newName} is already added to phonebook, replace the old number with a new one?`)
+      services
+        .update(persons.find(person => person.name === newName).id, personObject)
+        .then(returnedPerson => {
+          setPersons(persons.map(person => person.id !== returnedPerson.id ? person : returnedPerson))
+          setNewName('')
+          setNewNumber('')
+        })
     } else {
-      axios
-        .post('http://localhost:3001/persons', personObject)
-        .then(response => {
-          setPersons(persons.concat(response.data))
+      services
+        .create(personObject)
+        .then(returnedPerson => {
+          setPersons(persons.concat(returnedPerson))
           setNewName('')
           setNewNumber('')
         })
     }
   }
 
+  const removePerson = (id) => {
+    const person = persons.find(p => p.id === id)
+    if (window.confirm(`Delete ${person.name}?`)) {
+      services
+        .deletePerson(id)
+        .then(returnedPerson => {
+          setPersons(persons.filter(p => p.id !== id))
+        })
+    }
+  }
+
   const handlePersonChange = (event) => {
-    console.log(event.target.value)
     setNewName(event.target.value)
   }
 
   const handleNumberChange = (event) => {
-    console.log(event.target.value)
     setNewNumber(event.target.value)
   }
 
   const handleFilterChange = (event) => {
-    console.log(event.target.value)
     setNewFilter(event.target.value)
     setShowAll(false)
   }
@@ -99,7 +78,7 @@ const App = () => {
       <h2>Add A New Number</h2>
       <PersonForm addPerson={addPerson} newName={newName} handlePersonChange={handlePersonChange} newNumber={newNumber} handleNumberChange={handleNumberChange} />
       <h2>Numbers</h2>
-      <NumbersToShow persons={persons} newFilter={newFilter} />
+      <NumbersToShow persons={persons} newFilter={newFilter} removePerson={removePerson}/>
     </div>
   )
 }

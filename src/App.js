@@ -23,8 +23,7 @@ const App = () => {
     event.preventDefault()
     const personObject = {
       name: newName,
-      number: newNumber,
-      id: persons.length + 1
+      number: newNumber
     }
 
     if (persons.map(person => person.name).includes(newName)) {
